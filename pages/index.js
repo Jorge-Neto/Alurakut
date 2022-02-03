@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MainGrid from '../src/components/MainGrid';
 import Box from '../src/components/Box';
 import styled from 'styled-components';
@@ -33,9 +33,9 @@ const GroupRenders = ({ array, groupName }) => {
         {array.slice(0, 6).map(item => {
           return (
             <li key={item.id}>
-              <a href={item.link ? item.link : 'https://picsum.photos/'} target="_blank">
-                <img src={item.image ? item.image : `https://github.com/${item.name}.png`} />
-                <span>{item.name}</span>
+              <a href={item.link} target="_blank">
+                <img src={item.imageUrl} />
+                <span>{item.title}</span>
               </a>
             </li>
           )
@@ -45,32 +45,77 @@ const GroupRenders = ({ array, groupName }) => {
   )
 }
 
+
 export default function Home() {
   const githubUser = 'Jorge-Neto';
-  const [comunidades, setComunidades] = useState([{
-    id: 23242342342342342343454,
-    name: 'Eu odeio acordar cedo',
-    image: 'https://alurakut.vercel.app/capa-comunidade-01.jpg'
-  }]);
+  const [seguidores, setSeguidores] = useState([]);
+  const [comunidades, setComunidades] = useState([]);
   const pessoasFavoritas = [
-    { id: 123, name: 'omariosouto', link: 'https://www.youtube.com/c/DevSoutinho' },
-    { id: 234, name: 'peas', link: 'https://cursos.alura.com.br/user/paulo-silveira' },
-    { id: 345, name: 'juunegreiros', link: 'https://twitter.com/juunegreiros' },
-    { id: 456, name: 'rafaballerini', link: 'https://github.com/rafaballerini' },
-    { id: 567, name: 'marcobrunodev', link: 'https://www.instagram.com/marcobrunodev/' },
-    { id: 789, name: 'felipefialho', link: 'https://github.com/felipefialho' },
+    { id: 456, title: 'rafaballerini', link: 'https://github.com/rafaballerini', imageUrl: 'https://github.com/rafaballerini.png' },
   ];
+
+  useEffect(() => {
+    fetch('https://api.github.com/users/jorge-neto/followers')
+      .then((res) => res.json())
+      .then((obj) => {
+        const followers = [];
+        obj.forEach(item => {
+          let follower = {
+            id: item.id,
+            title: item.login,
+            imageUrl: item.avatar_url,
+            link: item.url
+          }
+          followers.push(follower);
+        });
+        setSeguidores(followers);
+      })
+      .catch((e) => console.log(e))
+
+    fetch('https://graphql.datocms.com/',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer 286309a0e729b0f22d6373977ca093`,
+        },
+        body: JSON.stringify({
+          query: '{ allCommunities { id, title, imageUrl, link, creatorSlug } }'
+        }),
+      })
+      .then(res => res.json())
+      .then((res) => {
+        setComunidades(res.data.allCommunities);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }, []);
 
   const handleSubmit = (event) => {
     event.preventDefault();
     const dadosForm = new FormData(event.target);
 
     const comunidade = {
-      id: new Date().getTime(),
-      name: dadosForm.get('title'),
-      image: dadosForm.get('image') ? dadosForm.get('image') : 'https://placehold.it/300x300'
+      title: dadosForm.get('title'),
+      imageUrl: dadosForm.get('image') ? dadosForm.get('image') : 'http://placehold.it/300x300',
+      link: ' ',
+      creatorSlug: githubUser
     }
-    return setComunidades([...comunidades, comunidade])
+
+    fetch('/api/communities', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(comunidade)
+    })
+    .then(async res => await res.json())
+    .then(res => setComunidades([...comunidades, res.obj]))
+
+
+    return
   }
 
   return (
@@ -105,7 +150,6 @@ export default function Home() {
                   placeholder="Coloque uma URL para ser usada de capa"
                   name="image"
                   aria-label="Coloque uma URL para ser usada de capa"
-                  required
                 />
               </div>
 
@@ -116,6 +160,8 @@ export default function Home() {
           </Box>
         </div>
         <div className="profileRelarionsArea" style={{ gridArea: 'profileRelarionsArea' }}>
+          <GroupRenders array={seguidores} groupName={'Seguidores'} />
+
           <GroupRenders array={comunidades} groupName={'Comunidades'} />
 
           <GroupRenders array={pessoasFavoritas} groupName={'Pessoas Favoritas'} />
