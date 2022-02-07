@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import MainGrid from '../src/components/MainGrid';
 import Box from '../src/components/Box';
-import styled from 'styled-components';
+import nookies from 'nookies';
+import jwt from 'jsonwebtoken'
 import { AlurakutMenu, AlurakutProfileSidebarMenuDefault, OrkutNostalgicIconSet } from '../src/lib/AluraCommons';
 import { ProfileRelationsBoxWrapper } from '../src/components/ProfileRelations';
 
@@ -46,16 +47,15 @@ const GroupRenders = ({ array, groupName }) => {
 }
 
 
-export default function Home() {
-  const githubUser = 'Jorge-Neto';
+export default function Home(props) {
+  const githubUser = props.githubUser;
   const [seguidores, setSeguidores] = useState([]);
   const [comunidades, setComunidades] = useState([]);
-  const pessoasFavoritas = [
-    { id: 456, title: 'rafaballerini', link: 'https://github.com/rafaballerini', imageUrl: 'https://github.com/rafaballerini.png' },
-  ];
+  const pessoasFavoritas = [];
+    // { id: 456, title: 'rafaballerini', link: 'https://github.com/rafaballerini', imageUrl: 'https://github.com/rafaballerini.png' },
 
   useEffect(() => {
-    fetch('https://api.github.com/users/jorge-neto/followers')
+    fetch(`https://api.github.com/users/${githubUser}/followers`)
       .then((res) => res.json())
       .then((obj) => {
         const followers = [];
@@ -70,7 +70,7 @@ export default function Home() {
         });
         setSeguidores(followers);
       })
-      .catch((e) => console.log(e))
+      .catch((e) => console.log('Error: ' + e))
 
     fetch('https://graphql.datocms.com/',
       {
@@ -89,7 +89,7 @@ export default function Home() {
         setComunidades(res.data.allCommunities);
       })
       .catch((error) => {
-        console.log(error);
+        console.log('error: ' + error);
       });
   }, []);
 
@@ -169,4 +169,31 @@ export default function Home() {
       </MainGrid>
     </>
   )
+}
+
+export async function getServerSideProps(context) {
+  const cookies = nookies.get(context)
+  const token = cookies.USER_TOKEN;
+  const { isAuthenticated } = await fetch('https://alurakut.vercel.app/api/auth', {
+    headers: {
+        Authorization: token
+      }
+  })
+  .then((resposta) => resposta.json());
+
+  if(!isAuthenticated) {
+    return {
+      redirect: {
+        destination: '/login',
+        permanent: false,
+      }
+    }
+  }
+
+  const { githubUser } = jwt.decode(token);
+  return {
+    props: {
+      githubUser
+    }, // will be passed to the page component as props
+  }
 }
